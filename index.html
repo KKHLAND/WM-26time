@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>원묵고등학교 시간표 시스템</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Noto Sans KR', Arial, sans-serif; }
+      .dynamic-text-large { font-size: clamp(1rem, 3.5vw, 1.5rem); line-height: 1.2; }
+      .dynamic-text-small { font-size: clamp(0.75rem, 2.8vw, 1rem); line-height: 1.2; }
+      @media print {
+        /* 기본 초기화 */
+        html, body { margin: 0 !important; padding: 0 !important; }
+        body > *:not(#root) { display: none !important; }
+        #root > div { display: block !important; padding: 0 !important; margin: 0 !important; background: none !important; }
+        #root > div > div > *:not(.printing) { display: none !important; }
+        .no-print, .no-print * { display: none !important; visibility: hidden !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+        /* A4 가로 페이지 설정 */
+        @page { size: A4 landscape; margin: 0.6cm; }
+
+        /* 인쇄 영역 - 전체 페이지를 꽉 채우는 flex 컨테이너 */
+        .printing {
+          visibility: visible !important;
+          position: fixed !important;
+          top: 0 !important; left: 0 !important;
+          width: 100vw !important; height: 100vh !important;
+          padding: 0 !important; margin: 0 !important;
+          box-shadow: none !important;
+          background: white !important;
+          display: flex !important;
+          flex-direction: column !important;
+          box-sizing: border-box !important;
+          overflow: hidden !important;
+          border-radius: 0 !important;
+        }
+        .printing * { visibility: visible !important; }
+        .printing table, .printing th, .printing td { box-shadow: none !important; }
+
+        /* 헤더 영역 - 최소 높이로 압축 */
+        .printing header {
+          flex-shrink: 0 !important;
+          padding: 0.15cm 0.3cm !important;
+          margin: 0 !important;
+          border-bottom: 2px solid #e5e7eb !important;
+        }
+        .printing header .relative { padding-bottom: 0.15cm !important; margin-bottom: 0 !important; border-bottom: none !important; }
+        .printing header h1 { font-size: 1.1rem !important; line-height: 1.3 !important; margin: 0 !important; padding: 0 !important; }
+        .printing header .space-y-4 > * + * { margin-top: 0 !important; }
+
+        /* 시간표 테이블 영역 - 남은 공간 전부 차지 */
+        .printing > .space-y-6 { display: contents !important; }
+        .printing .overflow-x-auto {
+          flex: 1 1 auto !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          display: flex !important;
+          flex-direction: column !important;
+        }
+        .printing table {
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 0 !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+          border: 1px solid #9ca3af !important;
+        }
+        .printing table th, .printing table td {
+          text-align: center !important;
+          vertical-align: middle !important;
+          border: 1px solid #d1d5db !important;
+          padding: 2px 1px !important;
+          overflow: hidden !important;
+        }
+        .printing table thead th { font-size: 0.85rem !important; padding: 3px 2px !important; }
+        .printing .dynamic-text-large { font-size: 1.08rem !important; line-height: 1.2 !important; }
+        .printing .dynamic-text-small { font-size: 0.96rem !important; line-height: 1.2 !important; }
+        .printing tr { height: auto !important; min-height: 0 !important; }
+        .printing .h-16, .printing .h-20, .printing .md\:h-20 { height: auto !important; }
+
+        /* 배경색 강제 출력 */
+        .printing .bg-\[#3c78d8\] { background-color: #3c78d8 !important; }
+        .printing .bg-\[#666\] { background-color: #666 !important; }
+        .printing .bg-yellow-400 { background-color: #facc15 !important; }
+        .printing .bg-gray-100 { background-color: #f3f4f6 !important; }
+      }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useCallback } = React;
+
+        // ─── 내장 데이터 ────────────────────────────────────────────────
+        const SEMESTER1_CSV = `교사명,월,,,,,,화,,,,,,,수,,,,,,목,,,,,,,금,,,,,,
+,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6,
+김혜원,,106,,104,,,,105,108,,101,,107,103,105,,,106,102,101,,,103,,108,104,,102,,107,창체,창체,
+16,,국어A,,국어A,,,,국어A,국어A,,국어A,,국어A,국어A,국어A,,,국어A,국어A,국어A,,,국어A,,국어A,국어A,,국어A,,국어A,,,
+장수임,108,105,,,104,,,106,107,,103,,102,,,,104,,107,103,106,,108,,101,,101,,105,102,창체,창체,
+16,국어B,국어B,,,국어B,,,국어B,국어B,,국어B,,국어B,,,,국어B,,국어B,국어B,국어B,,국어B,,국어B,,국어B,,국어B,국어B,,,
+이상용,,201,203,,205,204,203,205,202,204,,,,,,203,,201,202,,202,,,205,,,,,204,201,창체,창체,
+15,,문학A,문학A,,문학A,문학A,문학A,문학A,문학A,문학A,,,,,,문학A,,문학A,문학A,,문학A,,,문학A,,,,,문학A,문학A,,,
+홍진숙,,206,208,,201,203,202,204,206,205,,,,,,207,,206,208,,206,,,207,,,,,208,207,창체,창체,
+15,,문학A,문학A,,문학B,문학B,문학B,문학B,문학A,문학B,,,,,,문학A,,문학B,문학A,,문학A,,,문학A,,,,,문학A,문학A,,,
+오채영,201,,,201,,,,,,,201,,201,201,201,,201,,,201,,201,201,,201,,201,,207,208,창체,창체,
+14,C언탐,,,A언탐,,,,,,,B언탐,,E언탐,E언탐,B언탐,,A언탐,,,E언탐,,A언탐,C언탐,,B언탐,,C언탐,,문학B,문학B,,,
+신정아,306,,306,,,,,306,,306,306,306,,,306,306,,,,306,,,306,,306,306,306,306,306,,창체,창체,
+15,G화작,,C화작,,,,,J화작,,C화작,H화작,II화작,,,G화작,C화작,,,,G화작,,,J화작,,H화작,II화작,J화작,II화작,H화작,,,,
+우보영,603,,603,,603,,,,603,,,,,,603,603,,603,,603,,603,,,,,,,,,창체,창체,
+9,G독서,,C고전,,A고전,,,,A고전,,,,,,G독서,C고전,,A고전,,G독서,,C고전,,,,,,,,,,,
+김여진,,,,,,,,603,,,603,603,,,,,,,,,,,603,,603,603,603,603,603,,창체,창체,
+9,,,,,,,,J독서,,,H독서,I독서,,,,,,,,,,,J독서,,H독서,I독서,J독서,I독서,H독서,,,,
+박성용,,107,108,,106,105,107,,,108,,,106,105,,106,,107,,,105,106,,108,107,,108,105,,,창체,창체,
+16,,수학A,수학A,,수학A,수학A,수학A,,,수학A,,,수학A,수학A,,수학A,,수학A,,,수학A,수학A,,수학A,수학A,,수학A,수학A,,,,,
+김소연(수),104,,101,,103,102,103,,101,104,,,,,103,102,,,101,,101,104,,102,,103,102,104,,,창체,창체,
+16,수학B,,수학B,,수학B,수학B,수학B,,수학B,수학B,,,,,수학B,수학B,,,수학B,,수학B,수학B,,수학B,,수학B,수학B,수학B,,,,,
+전미경,,,202,,208,201,,307,201,,,307,,,,,,208,201,,208,,307,202,,307,307,307,,202,창체,창체,
+15,,,대수A,,대수A,대수A,,J확통,대수A,,,I확통,,,,,,대수A,대수A,,대수A,,J확통,대수A,,I확통,J확통,I확통,,대수A,,,
+홍선의,,204,207,,206,205,204,207,203,206,,,,,,206,,207,204,,205,,,203,,,,,203,205,창체,창체,
+15,,대수A,대수A,,대수A,대수A,대수A,대수A,대수A,대수A,,,,,,대수A,,대수A,대수A,,대수A,,,대수A,,,,,대수A,대수A,,,
+이춘신,206,602,,206,,,,,,,206,206,602,602,206,,206,,,,,206,206,,206,206,206,206,,,창체,창체,
+15,C기하,D인수,,A기하,,,,,,,B기하,D기하,D인수,D인수,B기하,,A기하,,,,,A기하,C기하,,B기하,D기하,C기하,D기하,,,,,
+윤희영,,,,,,,208,201,,207,,,,,,,,,,,,,,,,,,,202,203,창체,창체,
+5,,,,,,,대수B,대수B,,대수B,,,,,,,,,,,,,,,,,,,대수B,대수B,,,
+김미경(수),,307,307,307,,307,307,,,307,,,307,307,,307,307,,307,,307,307,,307,,,,,,307,창체,창체,
+15,,D확통,C확통,F확통,,E확통,B확통,,,C확통,,,D확통,D확통,,C확통,F확통,,E확통,,E확통,F확통,,B확통,,,,,,B확통,,,
+김재완,,306,,306,204,306,,,,,,,306,306,,,306,205,306,,306,306,,206,,,,,,,창체,창체,
+12,,D미적,,F미적,대수B,E미적,,,,,,,D미적,D미적,,,F미적,대수B,E미적,,E미적,F미적,,대수B,,,,,,,,,
+이명진,,,104,106,,,,102,,106,108,,104,102,108,,,104,106,108,,,102,,104,106,,108,102,,창체,창체,
+16,,,영어,영어,,,,영어,,영어,영어,,영어,영어,영어,,,영어,영어,영어,,,영어,,영어,영어,,영어,영어,,,,
+김기재,,,103,105,,,,,207,,,,,101,107,,,103,105,,,,,,,,,107,101,,창체,창체,
+9,,,영어,영어,,,,,사진,,,,,영어,영어,,,영어,영어,,,,,,,,,영어,영어,,,,
+이장익,,,,,,,,101,,105,107,,103,,,,,,,107,,,101,,103,105,,,,,창체,창체,
+8,,,,,,,,영어,,영어,영어,,영어,,,,,,,영어,,,영어,,영어,영어,,,,,,,
+류재선,,,외국어실,외국어실,,,,외국어실,,외국어실,외국어실,,외국어실,외국어실,외국어실,,,외국어실,외국어실,외국어실,,,외국어실,,외국어실,외국어실,,외국어실,외국어실,,창체,창체,
+16,,,영어,영어,,,,영어,,영어,영어,,영어,영어,영어,,,영어,영어,영어,,,영어,,영어,영어,,영어,영어,,,,
+박정연,,207,206,,202,208,206,202,208,201,,,,,,208,,202,207,,207,,,201,,,,,201,206,창체,창체,
+15,,영어,영어,,영어,영어,영어,영어,영어,영어,,,,,,영어,,영어,영어,,영어,,,영어,,,,,영어,영어,,,
+신세정,,205,,302,203,302,201,,205,203,,,208,208,,204,,203,,208,204,,302,,,,,302,205,204,창체,창체,
+17,,영어,,F창독,영어,E창독,연극,,영어,영어,,,E영문,E영문,,영어,,영어,,E영문,영어,,J창독,,,,,I창독,영어,영어,,,
+김광훈,,,303,208,303,,303,203,303,303,,208,,,,303,208,303,,,,208,,303,,208,,208,,303,창체,창체,
+16,,,C영독,A영문,A영독,,B영독,연극,A영독,C영독,,D영문,,,,C영독,A영문,A영독,,,,A영문,,B영독,,D영문,,D영문,,B영독,,,
+김소연(영),303,303,,303,,303,,,,,303,,303,303,303,,303,,303,303,303,303,,,303,,,,303,,창체,창체,
+15,G영독,D영독,,F영독,,E영독,,,,,H영독,,D영독,D영독,G영독,,F영독,,E영독,G영독,E영독,F영독,,,H영독,,,,H영독,,,,
+배영미,,,,102,,106,108,107,,,105,104,,106,,101,105,,103,,108,,104,,102,101,103,,107,,창체,창체,
+16,,,,국사A,,국사A,국사A,국사A,,,국사A,국사A,,국사A,,국사A,국사A,,국사A,,국사A,,국사A,,국사A,국사A,국사A,,국사A,,,,
+강현아,208,,106,108,,101,,,104,,208,,,,208,103,,102,,105,107,,208,,208,,208,,,,창체,창체,
+14,C세사,,국사B,국사B,,국사B,,,국사B,,B세사,,,,B세사,국사B,,국사B,,국사B,국사B,,C세사,,B세사,,C세사,,,,,,
+이현화,304,304,,,304,,,,304,,304,,304,304,304,,,304,,304,,108,107,,304,,,106,304,,창체,창체,
+15,G윤사,D윤사,,,A윤사,,,,A윤사,,H윤사,,D윤사,D윤사,G윤사,,,A윤사,,G윤사,,통사A,통사A,,H윤사,,,통사A,H윤사,,,,
+나유경,202,,105,202,,,,103,102,,202,202,,104,202,,202,,,,,202,202,,202,202,202,202,,101,창체,창체,
+17,C현윤,,통사A,A현윤,,,,통사A,통사A,,B현윤,D현윤,,통사A,B현윤,,A현윤,,,,,A현윤,C현윤,,B현윤,D현윤,C현윤,D현윤,,통사A,,,
+홍인숙,,,107,,102,601,,601,,101,,105,,,,108,,,601,,601,,601,,106,,601,,104,103,창체,창체,
+14,,,통사B,,통사B,E여지,,J여지,,통사B,,통사B,,,,통사B,,,E여지,,E여지,,J여지,,통사B,,J여지,,통사B,통사B,,,
+전근완,원묵꿈터,,,,,603,603,,,,308,201,202,202,,,,,603,202,603,,,603,308,201,,201,308,603,창체,창체,
+16,자율직,,,,,E논술,B논술,,,,H세지3,D세지2,E세지2,E세지2,,,,,E논술,E세지2,E논술,,,B논술,H세지3,D세지2,,D세지2,H세지3,B논술,,,
+이영미,103,101,,,108,,104,,,,305,305,,,,107,,105,,,,102,106,,305,305,,305,305,,창체,창체,
+14,통사C,통사C,,,통사C,,통사C,,,,H실경,I실경,,,,통사C,,통사C,,,,통사C,통사C,,H실경,I실경,,I실경,H실경,,,,
+공수빈,501,,305,,305,,305,,305,305,501,,501,501,501,305,,305,,501,,,501,305,501,,501,,,305,창체,창체,
+18,C법사,,C사탐,,A사탐,,B사탐,,A사탐,C사탐,B법사,,E법사,E법사,B법사,C사탐,,A사탐,,E법사,,,C법사,B사탐,B법사,,C법사,,,B사탐,,,
+최은영,,,,305,306,305,205,305,306,208,,,,,,,305,306,305,,305,305,305,,,,305,,,,창체,창체,
+14,,,,F사탐,A정법,E사탐,사진,J사탐,A정법,사진,,,,,,,F사탐,A정법,E사탐,,E사탐,F사탐,J사탐,,,,J사탐,,,,,,
+이은지(물),,103,,204,,107,,104,105,,,204,204,204,102,,204,,,204,,204,,101,,204,106,204,,108,창체,창체,
+17,,통과A,,A물리,,통과A,,통과A,통과A,,,D물리,E물리,E물리,통과A,,A물리,,,E물리,,A물리,,통과A,,D물리,통과A,D물리,,통과A,,,
+김미경(물),301,301,,602,301,,602,,301,,,,301,301,301,,602,301,,301,,602,,602,,,,,,602,창체,창체,
+15,G생활,D생활,,F물II,A생활,,B물II,,A생활,,,,D생활,D생활,G생활,,F물II,A생활,,G생활,,F물II,,B물II,,,,,,B물II,,,
+김상수,601,,102,103,,104,,,,,601,,108,107,601,,,101,,601,,,105,,601,,,,601,106,창체,창체,
+14,G환경,,통과B,통과B,,통과B,,,,,H환경,,통과B,통과B,G환경,,,통과B,,G환경,,,통과B,,H환경,,,,H환경,통과B,,,
+신미래,,,,205,,,,308,,,205,205,205,205,205,,205,,,205,,205,308,,205,205,308,205,,,창체,창체,
+15,,,,A화학,,,,J교육,,,B화학,D화학,E화학,E화학,B화학,,A화학,,,E화학,,A화학,J교육,,B화학,D화학,J교육,D화학,,,,,
+이진아,308,308,,,308,,,602,308,,,602,308,308,308,,,308,,308,,,602,,,602,602,602,,,창체,창체,
+15,G교육,D교육,,,A교육,,,J화II,A교육,,,I화II,D교육,D교육,G교육,,,A교육,,G교육,,,J화II,,,I화II,J화II,I화II,,,,,
+이재연,105,,,,602,,,206,602,202,602,,,,,,,602,,106,,,,103,602,,,,602,104,창체,창체,
+12,통과C,,,,A생II,,,사진,A생II,연극,H생II,,,,,,,A생II,,통과C,,,,통과C,H생II,,,,H생II,통과C,,,
+목정민,,,,,,,101,108,,102,,107,,,,,,,,,,,,,,,,,,,창체,창체,
+4,,,,,,,통과C,통과C,,통과C,,통과C,,,,,,,,,,,,,,,,,,,,,
+임수진,207,,,207,,,,,,,301,301,207,207,,,207,,,207,,207,207,,301,301,207,301,301,,창체,창체,
+15,C생명,,,A생명,,,,,,,H생활,I생활,E생명,E생명,,,A생명,,,E생명,,A생명,C생명,,H생활,I생활,C생명,I생활,H생활,,,,
+이은지(지),205,102,,101,,108,,,204,,,106,206,206,,,107,,104,206,,103,205,,105,,205,,,,창체,창체,
+15,C지구,과실,,과실,,과실,,,연극,,,과실,E지구,E지구,,,과실,,과실,E지구,,과실,C지구,,과실,,C지구,,,,,,
+김정순,602,,601,601,,,601,,,601,,601,,,602,601,601,,,602,,601,,601,,601,,601,,601,창체,창체,
+15,G지II,,C환경,F환경,,,B환경,,,C환경,,I환경,,,G지II,C환경,F환경,,,G지II,,F환경,,B환경,,I환경,,I환경,,B환경,,,
+조영글,,305,원묵꿈터,,101,,304,302,,,,302,305,305,,,102,,,,102,101,,304,,302,302,,,304,창체,창체,
+15,,D체기,체육직,,체육,,B체심,J운건,,,,I운건,D체기,D체기,,,체육,,,,체육,체육,,B체심,,I운건,J운건,,,B체심,,,
+전희철,,,,,,,,,,302,,103,302,302,,302,103,,,,,,,,,,,,,,창체,창체,
+6,,,,,,,,,,C운건,,체육,D운건,D운건,,C운건,체육,,,,,,,,,,,,,,,,
+유승현,106,원묵꿈터,,107,,,,,106,,104,,105,108,,,302,,302,,302,302,,104,,107,105,,108,,창체,창체,
+15,체육,체육직,,체육,,,,,체육,,체육,,체육,체육,,,F운건,,E운건,,E운건,F운건,,체육,,체육,체육,,체육,,,,
+김화섭,,202,204,,,207,302,,302,,207,,,,207,201,,302,205,,203,,,208,207,,,,206,302,창체,창체,
+15,,스과,스과,,,스과,B운건,,A운건,,B기체,,,,B기체,스과,,A운건,스과,,스과,,,스과,B기체,,,,스과,B운건,,,
+서연정,101,104,,,307,103,,304,307,,,102,101,,,104,,307,,102,104,,304,302,,,304,103,,,창체,창체,
+16,음악,음악,,,A시청,음악,,J음이,A시청,,,음악,음악,,,음악,,A시청,,음악,음악,,J음이,B창독,,,J음이,음악,,,,,
+구자향,102,208,205,,207,206,207,208,,103,,,,,,205,101,,206,,,,,,,,,,,,창체,창체,
+11,음악,음연,음연,,음연,음연,음연,음연,,음악,,,,,,음연,음악,,음연,,,,,,,,,,,,,,
+이호순,,,302,,107,308,105,,,107,,108,,,106,105,,108,308,,308,107,,106,,108,,,106,105,창체,창체,
+16,,,C창독,,미술,E평조,미술,,,미술,,미술,,,미술,미술,,미술,E평조,,E평조,미술,,미술,,미술,,,미술,미술,,,
+정수일,,203,201,308,,202,,,,,,,,,,202,308,204,203,,201,308,,204,,,,,,,창체,창체,
+11,,미창,미창,F미실,,미창,,,,,,,,,,미창,F미실,미창,미창,,미창,F미실,,미창,,,,,,,,,
+류지예,107,108,,,105,,102,,103,,106,101,,,104,,106,,108,,103,105,,107,,102,104,101,,,창체,창체,
+16,프로,프로,,,프로,,프로,,프로,,프로,프로,,,프로,,프로,,프로,,프로,프로,,프로,,프로,프로,프로,,,,,
+김태희,204,302,,304,302,,,,,,204,,203,203,204,,304,,,203,,304,204,,204,,204,,,,창체,창체,
+14,C인지2,D창독,,F인지3,A창독,,,,,,B인지2,,E인지2,E인지2,B인지2,,F인지3,,,E인지2,,F인지3,C인지2,,B인지2,,C인지2,,,,,,
+최선임,203,,301,203,,301,,,,301,203,203,,,203,301,203,,301,,301,,,,,,203,203,,,창체,창체,
+18,C일I,,C일Ii,A일I,,E일II,,,,C일Ii,B일I,D일I,,,B일I,C일Ii,A일I,,E일II,,E일II,,,,,,C일I,D일I,,,,,
+장승봉,,,,,,,,,,,,,,,,,,,,,,203,203,,203,203,,,,,창체,창체,
+4,,,,,,,,,,,,,,,,,,,,,,A일I,C일I,,B일I,D일I,,,,,,,
+박선영,,,,,,,306,,,,,207,,,,,,,,,,,,306,,207,,207,,306,창체,창체,
+6,,,,,,,B중II,,,,,D중I,,,,,,,,,,,,B중II,,D중I,,D중I,,B중II,,,
+문미선,,,,원묵꿈터,원묵꿈터,원묵꿈터,106,,,,102,,,,101,,108,,,104,,,,105,,,107,,103,,창체,창체,
+11,,,,진로직,동아직,동아직,진로,,,,진로,,,,진로,,진로,,,진로,,,,진로,,,진로,,진로,,,,
+전성진,,,,,,,205,206,207,208,,,,,,,,,,,,,,,,,,,,,창체,창체,
+4,,,,,,,사진,사진,사진,사진,,,,,,,,,,,,,,,,,,,,,,,
+민선해,,,,,,,201,203,204,202,,,,,,,,,,,,,,,,,,,,,창체,창체,
+4,,,,,,,연극,연극,연극,연극,,,,,,,,,,,,,,,,,,,,,,,
+가상31,,,,301,,,301,301,,,,,,,,,301,,,,,301,301,301,,,301,,,301,창체,창체,
+9,,,,F공실,,,B공실,J공실,,,,,,,,,F공실,,,,,F공실,J공실,B공실,,,J공실,,,B공실,,,
+가상32,302,,,,,,,,,,302,,,,302,,,,,302,,,,,302,,,,302,,창체,창체,
+6,G공실,,,,,,,,,,H공실,,,,G공실,,,,,G공실,,,,,H공실,,,,H공실,,,,
+가상33,,,,,,,,303,,,,303,,,,,,,,,,,303,,,303,303,303,,,창체,창체,
+6,,,,,,,,J공실,,,,I공실,,,,,,,,,,,J공실,,,I공실,J공실,I공실,,,,,
+가상34,,,304,,,304,,,,304,,304,,,,304,,,304,,304,,,,,304,,304,,,창체,창체,
+9,,,C공실,,,E공실,,,,C공실,,I공실,,,,C공실,,,E공실,,E공실,,,,,I공실,,I공실,,,,,
+가상35,305,,,,,,,,,,,,,,305,,,,,305,,,,,,,,,,,창체,창체,
+3,G공실,,,,,,,,,,,,,,G공실,,,,,G공실,,,,,,,,,,,,,
+가상37,307,,,,,,,,,,307,,,,307,,,,,307,,,,,307,,,,307,,창체,창체,
+-6,G공실,,,,,,,,,,H공실,,,,G공실,,,,,G공실,,,,,H공실,,,,H공실,,,,
+가상38,,,308,,,,308,,,308,,308,,,,308,,,,,,,,308,,308,,308,,308,창체,창체,
+9,,,C공실,,,,B공실,,,C공실,,I공실,,,,C공실,,,,,,,,B공실,,I공실,,I공실,,B공실,,,
+`;
+
+        const SEMESTER2_CSV = null; // 2학기 데이터 미입력
+
+        // ─── CSV 파싱 ────────────────────────────────────────────────────
+        const parseTimetableCSV = (csvText) => {
+            if (!csvText) return { records: [], teachers: [], classes: [], teacherHours: {} };
+            const rows = csvText.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
+            if (rows.length < 2) return { records: [], teachers: [], classes: [], teacherHours: {} };
+            const headers = [];
+            let currentDayLabel = '';
+            const dayRow = rows[0];
+            const periodRow = rows[1];
+            for (let i = 1; i < periodRow.length; i++) {
+                if (dayRow[i]) currentDayLabel = dayRow[i];
+                headers.push({ day: currentDayLabel, period: periodRow[i] ? parseInt(periodRow[i], 10) : 0 });
+            }
+            const records = [], teachers = new Set(), classes = new Set(), teacherHours = {};
+            for (let i = 2; i < rows.length; i += 2) {
+                const teacherRow = rows[i];
+                const subjectRow = rows[i + 1];
+                if (!teacherRow || !teacherRow[0] || !subjectRow) continue;
+                const teacherName = teacherRow[0];
+                teachers.add(teacherName);
+                teacherHours[teacherName] = parseInt(subjectRow[0] || '0', 10) || 0;
+                for (let j = 1; j < teacherRow.length; j++) {
+                    const classId = teacherRow[j];
+                    let subject = subjectRow[j];
+                    const header = headers[j - 1];
+                    if (classId && classId.includes('창체') && !subject) subject = classId;
+                    if (classId && subject && header && header.period) {
+                        records.push({ teacher: teacherName, classId, subject, day: header.day, period: header.period });
+                        if (classId !== '창체') classes.add(classId);
+                    }
+                }
+            }
+            return {
+                records, teachers: Array.from(teachers).sort(),
+                classes: Array.from(classes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+                teacherHours,
+            };
+        };
+
+        // ─── 시간표 뷰 (원본 디자인 유지) ───────────────────────────────
+        const DAYS = ['월', '화', '수', '목', '금'];
+
+        const TimetableView = ({ gridData, days, onCellClick }) => (
+            <div className="overflow-x-auto shadow-2xl rounded-lg border border-gray-300">
+                <table className="w-full border-collapse text-center table-fixed">
+                    <thead>
+                        <tr>
+                            <th className="p-2 md:p-4 border-b-2 border-r border-gray-400 bg-[#666] text-white font-bold text-lg md:text-2xl">교시</th>
+                            {days.map(d => (
+                                <th key={d} className="p-2 md:p-4 border-b-2 border-r border-gray-400 bg-[#3c78d8] text-white font-bold text-lg md:text-2xl">{d}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {gridData.map((row, pi) => (
+                            <tr key={pi} className={`h-16 md:h-20 ${pi === 3 ? 'border-b-2 border-orange-500' : 'border-b border-gray-200'}`}>
+                                <td className="p-1 border-r border-gray-200 bg-gray-100 text-gray-800 font-bold text-xl md:text-2xl">{pi + 1}</td>
+                                {row.map((cell, di) => {
+                                    const isCreative = cell?.topText === '창체';
+                                    const isEmpty = !cell && pi === 6 && [0, 2, 4].includes(di);
+                                    const selectable = false; // 학생 명단 기능 없음
+                                    return (
+                                        <td key={`${pi}-${di}`}
+                                            className={`p-1 border-r border-gray-200 overflow-hidden transition-all duration-200 ${isEmpty ? 'bg-gray-100' : 'bg-white'}`}
+                                            style={{ boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.05)' }}>
+                                            {cell && (
+                                                isCreative ? (
+                                                    <div className="flex justify-center items-center h-full">
+                                                        <span className="font-bold text-black dynamic-text-large">창체</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col justify-center items-center h-full">
+                                                        <span className="font-bold text-black dynamic-text-large">{cell.topText}</span>
+                                                        <span className="text-blue-600 mt-1 dynamic-text-small">{cell.bottomText}</span>
+                                                    </div>
+                                                )
+                                            )}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+
+        // ─── 시간표 화면 (원본 디자인 유지) ─────────────────────────────
+        const TimetableScreen = ({ semester, parsedData, onReset, onPrint }) => {
+            const [viewMode, setViewMode] = useState('teacher');
+            const [selectedTeacher, setSelectedTeacher] = useState('');
+            const [selectedClass, setSelectedClass] = useState('');
+
+            useEffect(() => {
+                const realTeachers = parsedData.teachers.filter(t => !t.startsWith('가상')); if (realTeachers.length > 0) setSelectedTeacher(realTeachers[0]);
+                if (parsedData.classes.length > 0) setSelectedClass(parsedData.classes[0]);
+            }, [parsedData]);
+
+            const gridData = useMemo(() => {
+                const grid = Array(7).fill(null).map(() => Array(5).fill(null));
+                const records = parsedData.records;
+                if (viewMode === 'teacher' && selectedTeacher) {
+                    records.filter(r => r.teacher === selectedTeacher).forEach(item => {
+                        const di = DAYS.indexOf(item.day);
+                        const pi = item.period - 1;
+                        if (di !== -1 && pi >= 0 && pi < 7)
+                            grid[pi][di] = { topText: item.classId, bottomText: item.subject };
+                    });
+                } else if (viewMode === 'class' && selectedClass) {
+                    for (let p = 0; p < 7; p++) {
+                        for (let d = 0; d < 5; d++) {
+                            const matched = records.filter(r => r.classId === selectedClass && r.day === DAYS[d] && r.period === p + 1);
+                            if (matched.length > 0)
+                                grid[p][d] = {
+                                    topText: matched[0].subject,
+                                    bottomText: matched.map(r => r.teacher).join(', ')
+                                };
+                        }
+                    }
+                }
+                return grid;
+            }, [viewMode, selectedTeacher, selectedClass, parsedData.records]);
+
+            const teacherHours = useMemo(() =>
+                (viewMode === 'teacher' && selectedTeacher && parsedData.teacherHours)
+                    ? parsedData.teacherHours[selectedTeacher] ?? 0 : 0,
+                [viewMode, selectedTeacher, parsedData.teacherHours]);
+
+            return (
+                <div id="printable-area" className="printable bg-white p-4 md:p-8 rounded-2xl shadow-2xl w-full flex flex-col gap-6">
+                    <header className="space-y-4">
+                        <div className="relative text-center pb-4 border-b-2 border-gray-200">
+                            <div className="absolute left-0 top-1/2 transform -translate-y-1/2">
+                                <button onClick={onReset} className="px-4 py-2 bg-[#cc4125] hover:bg-[#b33a22] text-white font-bold rounded-lg shadow-md text-base flex items-center gap-2 no-print">
+                                    ◀ 뒤로
+                                </button>
+                            </div>
+                            <h1 className="text-2xl md:text-4xl font-bold text-black">
+                                2026학년도 {semester}학기 시간표
+                            </h1>
+                        </div>
+                        <div className="flex flex-wrap justify-between items-center gap-4">
+                            <div className="flex gap-2 no-print">
+                                <button onClick={() => setViewMode('teacher')}
+                                    className={`px-4 py-2 text-lg font-bold rounded-md transition-all shadow-md ${viewMode === 'teacher' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}>교사별</button>
+                                <button onClick={() => setViewMode('class')}
+                                    className={`px-4 py-2 text-lg font-bold rounded-md transition-all shadow-md ${viewMode === 'class' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}>학급별</button>
+                            </div>
+                            <div className="flex-grow flex justify-center">
+                                <div className="flex items-center bg-white shadow-md rounded-lg p-2 w-full max-w-xs">
+                                    <span className="text-gray-400 mr-2">🔍</span>
+                                    {viewMode === 'teacher' ? (
+                                        <div className="flex items-center w-full justify-between overflow-hidden">
+                                            <select value={selectedTeacher} onChange={e => setSelectedTeacher(e.target.value)}
+                                                className="bg-transparent text-gray-900 font-bold focus:outline-none w-full text-center text-xl md:text-2xl">
+                                                {parsedData.teachers.filter(t => !t.startsWith('가상')).map(t => <option key={t} value={t}>{t}</option>)}
+                                            </select>
+                                            {teacherHours > 0 && (
+                                                <div className="bg-yellow-400 text-gray-800 font-bold px-3 py-1 rounded-md text-base whitespace-nowrap ml-2">{teacherHours}시간</div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)}
+                                            className="bg-transparent text-gray-900 font-bold focus:outline-none w-full text-center text-xl md:text-2xl">
+                                            {parsedData.classes.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="no-print">
+                                <button onClick={onPrint} className="px-5 py-2 bg-[#a64d79] hover:bg-[#8e4168] text-white font-bold rounded-lg shadow-md text-lg">인쇄하기</button>
+                            </div>
+                        </div>
+                    </header>
+                    <TimetableView gridData={gridData} days={DAYS} onCellClick={() => {}} />
+                </div>
+            );
+        };
+
+        // ─── 홈 화면 ─────────────────────────────────────────────────────
+        const HomeScreen = ({ onSelect }) => (
+            <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-2xl mx-auto text-center">
+                <header className="mb-8">
+                    <div className="text-6xl mb-4">📅</div>
+                    <h1 className="text-3xl md:text-4xl font-bold text-gray-800">원묵고등학교 시간표</h1>
+                    <p className="text-xl text-gray-600 mt-2">2026학년도</p>
+                </header>
+                <main className="space-y-4">
+                    <button onClick={() => onSelect('1')}
+                        className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">
+                        1학기 시간표
+                    </button>
+                    <button
+                        disabled
+                        className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-green-400 to-green-500 rounded-xl shadow-lg opacity-50 cursor-not-allowed">
+                        2학기 시간표
+                        <span className="block text-sm font-normal mt-1">준비 중</span>
+                    </button>
+                </main>
+            </div>
+        );
+
+        // ─── 메인 앱 ─────────────────────────────────────────────────────
+        const App = () => {
+            const [view, setView] = useState('home');
+            const [semester, setSemester] = useState(null);
+            const [parsedData, setParsedData] = useState(null);
+
+            const handleSelect = useCallback((sem) => {
+                const csv = sem === '1' ? SEMESTER1_CSV : SEMESTER2_CSV;
+                if (!csv) return;
+                setParsedData(parseTimetableCSV(csv));
+                setSemester(sem);
+                setView('timetable');
+            }, []);
+
+            const handleReset = useCallback(() => {
+                setView('home'); setParsedData(null); setSemester(null);
+            }, []);
+
+            const handlePrint = () => {
+                const el = document.getElementById('printable-area');
+                if (el) {
+                    document.body.classList.add('printing-portrait');
+                    el.classList.add('printing');
+                    setTimeout(() => {
+                        window.print();
+                        document.body.classList.remove('printing-portrait');
+                        el.classList.remove('printing');
+                    }, 150);
+                }
+            };
+
+            return (
+                <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+                    <main className="w-full max-w-7xl mx-auto">
+                        {view === 'home' ? (
+                            <HomeScreen onSelect={handleSelect} />
+                        ) : (
+                            <TimetableScreen semester={semester} parsedData={parsedData} onReset={handleReset} onPrint={handlePrint} />
+                        )}
+                    </main>
+                    <footer className="w-full text-center text-gray-400 text-sm mt-8 no-print">
+                        © 2026 원묵고등학교 시간표 시스템
+                    </footer>
+                </div>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
