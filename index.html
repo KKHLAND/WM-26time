@@ -3,105 +3,113 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>원묵고등학교 시간표 시스템</title>
+    <title>Personalized High School Timetable</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-      body { font-family: 'Noto Sans KR', Arial, sans-serif; }
-      .dynamic-text-large { font-size: clamp(1rem, 3.5vw, 1.5rem); line-height: 1.2; }
-      .dynamic-text-small { font-size: clamp(0.75rem, 2.8vw, 1rem); line-height: 1.2; }
+      body {
+        font-family: 'Noto Sans KR', Arial, sans-serif;
+      }
+      
+      .dynamic-text-large {
+        font-size: clamp(1rem, 3.5vw, 1.5rem);
+        line-height: 1.2;
+      }
+      .dynamic-text-small {
+        font-size: clamp(0.75rem, 2.8vw, 1rem);
+        line-height: 1.2;
+      }
+
+      @page {
+        margin: 1cm;
+      }
+
       @media print {
-        /* 기본 초기화 */
-        html, body { margin: 0 !important; padding: 0 !important; }
-        body > *:not(#root) { display: none !important; }
-        #root > div { display: block !important; padding: 0 !important; margin: 0 !important; background: none !important; }
-        #root > div > div > *:not(.printing) { display: none !important; }
-        .no-print, .no-print * { display: none !important; visibility: hidden !important; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        html, body {
+            height: 99%;
+            overflow: hidden;
+            visibility: visible;
+        }
+        body > *:not(#root) { display: none; }
+        #root > div > div > *:not(.printing) { display: none; }
+        
+        .no-print, .no-print * {
+           visibility: hidden !important;
+           display: none !important;
+        }
 
-        /* A4 가로 페이지 설정 */
-        @page { size: A4 landscape; margin: 0.6cm; }
-
-        /* 인쇄 영역 - 전체 페이지를 꽉 채우는 flex 컨테이너 */
         .printing {
           visibility: visible !important;
-          position: fixed !important;
-          top: 0 !important; left: 0 !important;
-          width: 100vw !important; height: 100vh !important;
-          padding: 0 !important; margin: 0 !important;
+          position: absolute; left: 0; top: 0;
+          width: 100% !important; height: auto !important;
+          margin: 0 !important; padding: 0 !important;
           box-shadow: none !important;
-          background: white !important;
-          display: flex !important;
-          flex-direction: column !important;
-          box-sizing: border-box !important;
-          overflow: hidden !important;
-          border-radius: 0 !important;
+          border: none !important;
         }
-        .printing * { visibility: visible !important; }
-        .printing table, .printing th, .printing td { box-shadow: none !important; }
+        .printing * {
+          visibility: visible;
+        }
 
-        /* 헤더 영역 - 최소 높이로 압축 */
-        .printing header {
-          flex-shrink: 0 !important;
-          padding: 0.15cm 0.3cm !important;
-          margin: 0 !important;
-          border-bottom: 2px solid #e5e7eb !important;
+        /* --- 👇 모든 테이블 요소의 그림자 효과 제거 --- */
+        .printing table, .printing th, .printing td {
+            box-shadow: none !important;
+            border-style: solid !important;
         }
-        .printing header .relative { padding-bottom: 0.15cm !important; margin-bottom: 0 !important; border-bottom: none !important; }
-        .printing header h1 { font-size: 1.1rem !important; line-height: 1.3 !important; margin: 0 !important; padding: 0 !important; }
-        .printing header .space-y-4 > * + * { margin-top: 0 !important; }
 
-        /* 시간표 테이블 영역 - 남은 공간 전부 차지 */
-        .printing > .space-y-6 { display: contents !important; }
-        .printing .overflow-x-auto {
-          flex: 1 1 auto !important;
-          min-height: 0 !important;
-          overflow: hidden !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-          display: flex !important;
-          flex-direction: column !important;
+        th, td {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            text-align: center !important;
+            vertical-align: middle !important;
         }
-        .printing table {
-          width: 100% !important;
-          height: 100% !important;
-          min-height: 0 !important;
-          table-layout: fixed !important;
-          border-collapse: collapse !important;
-          border: 1px solid #9ca3af !important;
-        }
-        .printing table th, .printing table td {
-          text-align: center !important;
-          vertical-align: middle !important;
-          border: 1px solid #d1d5db !important;
-          padding: 2px 1px !important;
-          overflow: hidden !important;
-        }
-        .printing table thead th { font-size: 0.85rem !important; padding: 3px 2px !important; }
-        .printing .dynamic-text-large { font-size: 1.08rem !important; line-height: 1.2 !important; }
-        .printing .dynamic-text-small { font-size: 0.96rem !important; line-height: 1.2 !important; }
-        .printing tr { height: auto !important; min-height: 0 !important; }
-        .printing .h-16, .printing .h-20, .printing .md\:h-20 { height: auto !important; }
 
-        /* 배경색 강제 출력 */
-        .printing .bg-\[#3c78d8\] { background-color: #3c78d8 !important; }
-        .printing .bg-\[#666\] { background-color: #666 !important; }
-        .printing .bg-yellow-400 { background-color: #facc15 !important; }
-        .printing .bg-gray-100 { background-color: #f3f4f6 !important; }
+        /* --- 시간표 인쇄 (세로) --- */
+        body.printing-portrait {
+            @page { size: A4 portrait; }
+            #printable-area {
+                padding: 1cm !important;
+                zoom: 88%;
+            }
+            #printable-area h1 { font-size: 2.2rem !important; }
+            #printable-area table th { font-size: 16pt !important; }
+            #printable-area .bg-yellow-400 { background-color: #facc15 !important; }
+        }
+
+        /* --- 선택과목 인쇄 (가로) --- */
+        body.printing-landscape {
+            @page { size: A4 landscape; }
+            #student-printable-area {
+                padding: 0.5cm !important;
+                zoom: 64%; 
+            }
+            #student-printable-area h1 { font-size: 1.5rem !important; margin-bottom: 0.5rem !important; }
+            #student-printable-area .overflow-x-auto { overflow: visible !important; }
+            #student-printable-area table { font-size: 11pt !important; }
+            #student-printable-area th, #student-printable-area td {
+                padding: 5px 3px !important; 
+                border: 1px solid #ccc !important;
+            }
+            #student-printable-area thead th {
+                background-color: #dbeafe !important;
+            }
+        }
       }
     </style>
 </head>
 <body>
     <div id="root"></div>
+    
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <script type="text/babel">
+        // --- React and Data Section ---
         const { useState, useMemo, useEffect, useCallback } = React;
 
-        // ─── 내장 데이터 ────────────────────────────────────────────────
-        const SEMESTER1_CSV = `교사명,월,,,,,,화,,,,,,,수,,,,,,목,,,,,,,금,,,,,,
-,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6,
+        // --- Data Section ---
+        const semester1Csv = `요일,월,,,,,,화,,,,,,,수,,,,,,목,,,,,,,금,,,,,
+교사명/교시,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6
 김혜원,,106,,104,,,,105,108,,101,,107,103,105,,,106,102,101,,,103,,108,104,,102,,107,창체,창체,
 16,,국어A,,국어A,,,,국어A,국어A,,국어A,,국어A,국어A,국어A,,,국어A,국어A,국어A,,,국어A,,국어A,국어A,,국어A,,국어A,,,
 장수임,108,105,,,104,,,106,107,,103,,102,,,,104,,107,103,106,,108,,101,,101,,105,102,창체,창체,
@@ -140,7 +148,7 @@
 9,,,영어,영어,,,,,사진,,,,,영어,영어,,,영어,영어,,,,,,,,,영어,영어,,,,
 이장익,,,,,,,,101,,105,107,,103,,,,,,,107,,,101,,103,105,,,,,창체,창체,
 8,,,,,,,,영어,,영어,영어,,영어,,,,,,,영어,,,영어,,영어,영어,,,,,,,
-류재선,,,외국어실,외국어실,,,,외국어실,,외국어실,외국어실,,외국어실,외국어실,외국어실,,,외국어실,외국어실,외국어실,,,외국어실,,외국어실,외국어실,,외국어실,외국어실,,창체,창체,
+류재선,,,110,111,,,,109,,111,112,,110,109,112,,,110,111,112,,,109,,110,111,,112,109,,창체,창체,
 16,,,영어,영어,,,,영어,,영어,영어,,영어,영어,영어,,,영어,영어,영어,,,영어,,영어,영어,,영어,영어,,,,
 박정연,,207,206,,202,208,206,202,208,201,,,,,,208,,202,207,,207,,,201,,,,,201,206,창체,창체,
 15,,영어,영어,,영어,영어,영어,영어,영어,영어,,,,,,영어,,영어,영어,,영어,,,영어,,,,,영어,영어,,,
@@ -160,7 +168,7 @@
 17,C현윤,,통사A,A현윤,,,,통사A,통사A,,B현윤,D현윤,,통사A,B현윤,,A현윤,,,,,A현윤,C현윤,,B현윤,D현윤,C현윤,D현윤,,통사A,,,
 홍인숙,,,107,,102,601,,601,,101,,105,,,,108,,,601,,601,,601,,106,,601,,104,103,창체,창체,
 14,,,통사B,,통사B,E여지,,J여지,,통사B,,통사B,,,,통사B,,,E여지,,E여지,,J여지,,통사B,,J여지,,통사B,통사B,,,
-전근완,원묵꿈터,,,,,603,603,,,,308,201,202,202,,,,,603,202,603,,,603,308,201,,201,308,603,창체,창체,
+전근완,원묵꿈터,,,,,603,603,,,,308,201,202,202,,,,,603,202,603\,,,603,308,201,,201,308,603,창체,창체,
 16,자율직,,,,,E논술,B논술,,,,H세지3,D세지2,E세지2,E세지2,,,,,E논술,E세지2,E논술,,,B논술,H세지3,D세지2,,D세지2,H세지3,B논술,,,
 이영미,103,101,,,108,,104,,,,305,305,,,,107,,105,,,,102,106,,305,305,,305,305,,창체,창체,
 14,통사C,통사C,,,통사C,,통사C,,,,H실경,I실경,,,,통사C,,통사C,,,,통사C,통사C,,H실경,I실경,,I실경,H실경,,,,
@@ -188,7 +196,7 @@
 15,C지구,과실,,과실,,과실,,,연극,,,과실,E지구,E지구,,,과실,,과실,E지구,,과실,C지구,,과실,,C지구,,,,,,
 김정순,602,,601,601,,,601,,,601,,601,,,602,601,601,,,602,,601,,601,,601,,601,,601,창체,창체,
 15,G지II,,C환경,F환경,,,B환경,,,C환경,,I환경,,,G지II,C환경,F환경,,,G지II,,F환경,,B환경,,I환경,,I환경,,B환경,,,
-조영글,,305,원묵꿈터,,101,,304,302,,,,302,305,305,,,102,,,,102,101,,304,,302,302,,,304,창체,창체,
+조영글,,305,dnjsanr,,101,,304,302,,,,302,305,305,,,102,,,,102,101,,304,,302,302,,,304,창체,창체,
 15,,D체기,체육직,,체육,,B체심,J운건,,,,I운건,D체기,D체기,,,체육,,,,체육,체육,,B체심,,I운건,J운건,,,B체심,,,
 전희철,,,,,,,,,,302,,103,302,302,,302,103,,,,,,,,,,,,,,창체,창체,
 6,,,,,,,,,,C운건,,체육,D운건,D운건,,C운건,체육,,,,,,,,,,,,,,,,
@@ -236,258 +244,645 @@
 9,,,C공실,,,,B공실,,,C공실,,I공실,,,,C공실,,,,,,,,B공실,,I공실,,I공실,,B공실,,,
 `;
 
-        const SEMESTER2_CSV = null; // 2학기 데이터 미입력
+const semester2Csv = `요일,월,,,,,,화,,,,,,,수,,,,,,목,,,,,,,금,,,,,
+교사명/교시,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,5,6
 
-        // ─── CSV 파싱 ────────────────────────────────────────────────────
-        const parseTimetableCSV = (csvText) => {
-            if (!csvText) return { records: [], teachers: [], classes: [], teacherHours: {} };
-            const rows = csvText.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
-            if (rows.length < 2) return { records: [], teachers: [], classes: [], teacherHours: {} };
-            const headers = [];
-            let currentDayLabel = '';
-            const dayRow = rows[0];
-            const periodRow = rows[1];
-            for (let i = 1; i < periodRow.length; i++) {
-                if (dayRow[i]) currentDayLabel = dayRow[i];
-                headers.push({ day: currentDayLabel, period: periodRow[i] ? parseInt(periodRow[i], 10) : 0 });
-            }
-            const records = [], teachers = new Set(), classes = new Set(), teacherHours = {};
-            for (let i = 2; i < rows.length; i += 2) {
-                const teacherRow = rows[i];
-                const subjectRow = rows[i + 1];
-                if (!teacherRow || !teacherRow[0] || !subjectRow) continue;
-                const teacherName = teacherRow[0];
-                teachers.add(teacherName);
-                teacherHours[teacherName] = parseInt(subjectRow[0] || '0', 10) || 0;
-                for (let j = 1; j < teacherRow.length; j++) {
-                    const classId = teacherRow[j];
-                    let subject = subjectRow[j];
-                    const header = headers[j - 1];
-                    if (classId && classId.includes('창체') && !subject) subject = classId;
-                    if (classId && subject && header && header.period) {
-                        records.push({ teacher: teacherName, classId, subject, day: header.day, period: header.period });
-                        if (classId !== '창체') classes.add(classId);
+`;
+
+const semester3Csv = `요일,월,,,,,,화,,,,,,,수,,,,목,,,,,,,금,,,,,
+교사명/교시,1,2,3,4,5,6,1,2,3,4,5,6,7,1,2,3,4,1,2,3,4,5,6,7,1,2,3,4,5,6
+
+`;
+
+const studentCsvGrade1 = `학번,이름
+10101,김민수
+
+`;
+
+const studentCsvAllGrade2 = `학번,이름
+20101,강수정
+
+`;
+
+const studentCsvGrade2 = `학번,이름,심화 국어,기하,영어권 문화,한국지리,세계사,사회･문화,생활과 윤리,물리학Ⅰ,화학Ⅰ,생명과학Ⅰ,지구과학Ⅰ,체육 탐구,음악 연주,미술 감상과 비평,일본어Ⅰ,중국어Ⅰ
+20101,강수정,,E,,,,,,B,A,,C,,,,D,
+
+`;
+
+const studentCsvGrade3 = `학번,이름,영어 독해와 작문,운동과 건강,화법과 작문,독서,고전 읽기,확률과 통계,미적분,인공지능 수학,세계지리,동아시아사,정치와 법,윤리와 사상,여행지리,사회문제 탐구,고전과 윤리,물리학Ⅱ,화학Ⅱ,생명과학Ⅱ,지구과학Ⅱ,과학사,생활과 과학,체육 전공 실기 심화,체육 전공 실기 기초,음악 이론,시창·청음,평면 조형,미술 전공 실기,인공지능 기초,일본어Ⅱ,중국어Ⅱ,교육학,환경,실용 경제,논술,창독
+30101,김도윤,C,G,I,,,F,,,,,,,J,,,,,,H,A,E,,,,,,,,,,B,D,,,G
+
+`;
+
+const studentCsvGrade3Names = `학번,이름
+30101,김도윤
+
+`;
+
+        // --- End of Data Section ---
+
+        // --- React Hooks and Data Maps ---
+        const SUBJECT_CODE_MAP = {
+            '심국': '심화 국어', '기하': '기하', '영문': '영어권 문화', '한지': '한국지리', '세사': '세계사', '사문': '사회･문화', '생윤': '생활과 윤리', '물Ⅰ': '물리학Ⅰ', '화Ⅰ': '화학Ⅰ', '생Ⅰ': '생명과학Ⅰ', '지Ⅰ': '지구과학Ⅰ', '체탐': '체육 탐구', '음연': '음악 연주', '미감': '미술 감상과 비평', '일Ⅰ': '일본어Ⅰ', '중Ⅰ': '중국어Ⅰ', '영독': '영어 독해와 작문', '운건': '운동과 건강', '화작': '화법과 작문', '독서': '독서', '고전': '고전 읽기', '확통': '확률과 통계', '미적': '미적분', '인수': '인공지능 수학', '세지': '세계지리', '동사': '동아시아사', '정법': '정치와 법', '윤사': '윤리와 사상', '여지': '여행지리', '사탐': '사회문제 탐구', '고윤': '고전과 윤리', '물Ⅱ': '물리학Ⅱ', '화Ⅱ': '화학Ⅱ', '생Ⅱ': '생명과학Ⅱ', '지Ⅱ': '지구과학Ⅱ', '과사': '과학사', '생활': '생활과 과학', '체기': '체육 전공 실기 기초', '체심': '체육 전공 실기 심화', '음이': '음악 이론', '시청': '시창·청음', '평조': '평면 조형', '미실': '미술 전공 실기', '인지': '인공지능 기초', '일Ⅱ': '일본어Ⅱ', '중Ⅱ': '중국어Ⅱ', '교육': '교육학', '환경': '환경', '실경': '실용 경제', '논술': '논술', '창독': '창독'
+        };
+        
+        // --- Helper Functions ---
+        const parseTimetableCSV = (csvText, isGrade3 = false) => {
+            return new Promise((resolve, reject) => {
+                try {
+                    if (!csvText) return resolve({ records: [], teachers: [], classes: [], teacherHours: {} });
+                    const rows = csvText.trim().split('\n').map(row => row.split(',').map(cell => cell.trim()));
+                    if (rows.length < 2) reject(new Error('CSV file is too short.'));
+                    
+                    const headers = [];
+                    let currentDayLabel = '';
+                    const dayRow = rows[0];
+                    const periodRow = rows[1];
+                    for (let i = 1; i < periodRow.length; i++) {
+                        if (dayRow[i]) currentDayLabel = dayRow[i];
+                        headers.push({ day: currentDayLabel, period: periodRow[i] ? parseInt(periodRow[i], 10) : 0 });
                     }
+                    
+                    const records = [], teachers = new Set(), classes = new Set(), teacherHours = {};
+                    
+                    if (isGrade3) {
+                         // 고3 데이터는 교사별로 한 줄씩 있음. 과목 정보 없음.
+                        for (let i = 2; i < rows.length; i++) {
+                            const teacherRow = rows[i];
+                            if (!teacherRow || !teacherRow[0]) continue;
+                            const teacherName = teacherRow[0];
+                            teachers.add(teacherName);
+                            for (let j = 1; j < teacherRow.length; j++) {
+                                const classId = teacherRow[j];
+                                // 고3은 과목명이 별도로 없으므로, 학급 정보만 사용.
+                                const subject = classId; 
+                                const header = headers[j - 1];
+                                if (classId && subject && header && header.period) {
+                                    records.push({ teacher: teacherName, classId, subject, day: header.day, period: header.period });
+                                    if(classId !== '창체' && classId !== '직업') classes.add(classId);
+                                }
+                            }
+                        }
+                    } else {
+                        // 1, 2학년 데이터는 교사 정보와 과목 정보가 2줄씩 쌍으로 있음.
+                        for (let i = 2; i < rows.length; i += 2) {
+                            const teacherRow = rows[i];
+                            const subjectRow = rows[i + 1];
+                            if (!teacherRow || !teacherRow[0] || !subjectRow) continue;
+                            
+                            const teacherName = teacherRow[0];
+                            teachers.add(teacherName);
+                            teacherHours[teacherName] = parseInt(subjectRow[0] || '0', 10) || 0;
+                            
+                            for (let j = 1; j < teacherRow.length; j++) {
+                                const classId = teacherRow[j];
+                                let subject = subjectRow[j];
+                                const header = headers[j - 1];
+                                if (classId && classId.includes('창체') && !subject) subject = classId;
+                                if (classId && subject && header && header.period) {
+                                    records.push({ teacher: teacherName, classId, subject, day: header.day, period: header.period });
+                                     if(classId !== '창체') classes.add(classId);
+                                }
+                            }
+                        }
+                    }
+                    
+                    resolve({
+                        records,
+                        teachers: Array.from(teachers).sort(),
+                        classes: Array.from(classes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+                        teacherHours,
+                    });
+                } catch (error) { reject(error); }
+            });
+        };
+        
+        const parseStudentCSV = (csvText) => {
+            try {
+                if (!csvText) return { headers: [], data: [] };
+                const rows = csvText.trim().split('\n').map(r => r.split(','));
+                const headers = rows[0].map(h => h.trim());
+                const data = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const student = {};
+                    const row = rows[i].map(cell => cell.trim());
+                    if (row.length < 2 || !row[0] || !row[1]) continue;
+                    headers.forEach((header, j) => {
+                        if (header) student[header] = row[j] || null;
+                    });
+                    data.push(student);
                 }
+                return { headers: headers.slice(2), data };
+            } catch (error) {
+                console.error("Error parsing student CSV:", error);
+                return { headers: [], data: [] };
             }
-            return {
-                records, teachers: Array.from(teachers).sort(),
-                classes: Array.from(classes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
-                teacherHours,
-            };
         };
 
-        // ─── 시간표 뷰 (원본 디자인 유지) ───────────────────────────────
-        const DAYS = ['월', '화', '수', '목', '금'];
+        // --- Components ---
+        const HomeScreen = ({ onSemesterSelect, onStudentSearchSelect, isLoading, error }) => {
+            return (
+                <div className="bg-white p-8 rounded-lg shadow-2xl max-w-2xl mx-auto text-center">
+                    <header className="mb-8">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-24 w-24 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9 14h.01M12 14h.01M15 14h.01M9 17h.01M12 17h.01M15 17h.01" /></svg>
+                        <h1 className="text-4xl font-bold text-gray-800 mt-4">원묵고등학교 시간표 시스템</h1>
+                        <p className="text-xl text-gray-600 mt-2">2026학년도</p>
+                    </header>
+                    <main className="space-y-4">
+                        <p className="text-lg text-gray-700">원하는 메뉴를 선택하세요.</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onClick={() => onSemesterSelect('1')} disabled={isLoading} className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all disabled:bg-gray-400">{isLoading ? '로딩 중...' : '1학기 시간표'}</button>
+                            <button onClick={() => onSemesterSelect('2')} disabled={isLoading} className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all disabled:bg-gray-400">{isLoading ? '로딩 중...' : '2학기 시간표'}</button>
+                            <button onClick={() => onSemesterSelect('3')} disabled={isLoading} className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all disabled:bg-gray-400">{isLoading ? '로딩 중...' : '고3 시간표'}</button>
+                            <button onClick={onStudentSearchSelect} disabled={isLoading} className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all disabled:bg-gray-400">{isLoading ? '로딩 중...' : '개인별/반별 선택과목 확인'}</button>
+                        </div>
+                        {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                    </main>
+                </div>
+            );
+        };
+        
+        const StudentListModal = ({ modalData, onClose, onStudentClick }) => {
+            if (!modalData) return null;
+            const { subject, students, isElective, teacher } = modalData;
 
-        const TimetableView = ({ gridData, days, onCellClick }) => (
-            <div className="overflow-x-auto shadow-2xl rounded-lg border border-gray-300">
-                <table className="w-full border-collapse text-center table-fixed">
-                    <thead>
-                        <tr>
-                            <th className="p-2 md:p-4 border-b-2 border-r border-gray-400 bg-[#666] text-white font-bold text-lg md:text-2xl">교시</th>
-                            {days.map(d => (
-                                <th key={d} className="p-2 md:p-4 border-b-2 border-r border-gray-400 bg-[#3c78d8] text-white font-bold text-lg md:text-2xl">{d}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {gridData.map((row, pi) => (
-                            <tr key={pi} className={`h-16 md:h-20 ${pi === 3 ? 'border-b-2 border-orange-500' : 'border-b border-gray-200'}`}>
-                                <td className="p-1 border-r border-gray-200 bg-gray-100 text-gray-800 font-bold text-xl md:text-2xl">{pi + 1}</td>
-                                {row.map((cell, di) => {
-                                    const isCreative = cell?.topText === '창체';
-                                    const isEmpty = !cell && pi === 6 && [0, 2, 4].includes(di);
-                                    const selectable = false; // 학생 명단 기능 없음
-                                    return (
-                                        <td key={`${pi}-${di}`}
-                                            className={`p-1 border-r border-gray-200 overflow-hidden transition-all duration-200 ${isEmpty ? 'bg-gray-100' : 'bg-white'}`}
-                                            style={{ boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.05)' }}>
-                                            {cell && (
-                                                isCreative ? (
-                                                    <div className="flex justify-center items-center h-full">
-                                                        <span className="font-bold text-black dynamic-text-large">창체</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col justify-center items-center h-full">
-                                                        <span className="font-bold text-black dynamic-text-large">{cell.topText}</span>
-                                                        <span className="text-blue-600 mt-1 dynamic-text-small">{cell.bottomText}</span>
-                                                    </div>
-                                                )
-                                            )}
-                                        </td>
-                                    );
-                                })}
+            const handleRowClick = (student) => {
+                if (isElective) {
+                    onStudentClick(student);
+                }
+            };
+
+            return (
+                <div className="no-print fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50" onClick={onClose}>
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                        <header className="p-5 border-b border-gray-200 text-center">
+                            <h2 className="text-2xl font-bold text-gray-800">{subject}</h2>
+                             {teacher && <p className="text-lg text-gray-700 font-semibold mt-2">담당교사: {teacher}</p>}
+                            <p className="text-base text-gray-600 mt-1">총 {students.length}명</p>
+                        </header>
+                        <main className="p-6 overflow-y-auto">
+                            <table className="w-full text-left">
+                                <thead className="text-lg text-gray-700"><tr><th className="w-16 px-4 py-2">순</th><th className="px-4 py-2">학번</th><th className="px-4 py-2">이름</th></tr></thead>
+                                <tbody>
+                                    {students.map((student, index) => (
+                                        <tr key={index} className={`border-t ${isElective ? 'cursor-pointer hover:bg-blue-100' : ''}`} onClick={() => handleRowClick(student)}>
+                                            <td className="px-4 py-2">{index + 1}</td><td className="px-4 py-2">{student.id}</td><td className="px-4 py-2">{student.name}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </main>
+                        <footer className="p-4 bg-gray-50 border-t border-gray-200 text-right">
+                             <button onClick={onClose} className="px-6 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600">닫기</button>
+                        </footer>
+                    </div>
+                </div>
+            );
+        };
+
+        const StudentDetailModal = ({ modalData, onClose }) => {
+            if (!modalData) return null;
+            const { name, subjects } = modalData;
+            return (
+                <div className="no-print fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50" onClick={onClose}>
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                        <header className="p-5 border-b"><h2 className="text-xl font-bold text-center">{name} 학생 선택과목 현황</h2></header>
+                        <main className="p-6 max-h-[60vh] overflow-y-auto">
+                             <ul className="space-y-2">
+                                {subjects.length > 0 ? subjects.map((subject, index) => (<li key={index} className="px-4 py-2 bg-gray-100 rounded-md text-gray-800">{subject}</li>)) : <p className="text-center text-gray-500">선택한 과목이 없습니다.</p>}
+                            </ul>
+                        </main>
+                        <footer className="p-4 bg-gray-50 text-right rounded-b-xl">
+                            <button onClick={onClose} className="px-5 py-2 bg-gray-500 text-white font-semibold rounded-lg shadow-md hover:bg-gray-600">닫기</button>
+                        </footer>
+                    </div>
+                </div>
+            );
+        };
+
+        const TimetableView = ({ gridData, days, onCellClick }) => {
+            return (
+                <div className="overflow-x-auto shadow-2xl rounded-lg border border-gray-300">
+                    <table className="w-full border-collapse text-center table-fixed">
+                        <thead>
+                            <tr>
+                                <th className="p-2 md:p-4 border-b-2 border-r border-gray-400 bg-[#666666] text-white font-bold text-lg md:text-2xl shadow-md">교시</th>
+                                {days.map(day => (<th key={day} className="p-2 md:p-4 border-b-2 border-r border-gray-400 bg-[#3c78d8] text-white font-bold text-lg md:text-2xl shadow-md">{day}</th>))}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        );
-
-        // ─── 시간표 화면 (원본 디자인 유지) ─────────────────────────────
-        const TimetableScreen = ({ semester, parsedData, onReset, onPrint }) => {
+                        </thead>
+                        <tbody>
+                            {gridData.map((row, periodIndex) => (
+                                <tr key={periodIndex} className={`h-16 md:h-20 ${periodIndex === 3 ? 'border-b-2 border-orange-500' : 'border-b border-gray-200'}`}>
+                                    <td className="p-1 border-r border-gray-200 bg-gray-100 text-gray-800 font-bold text-xl md:text-2xl shadow-inner">{periodIndex + 1}</td>
+                                    {row.map((cell, dayIndex) => {
+                                        const isCreativeActivity = cell?.topText === '창체';
+                                        const is7thPeriodEmptySlot = !cell && periodIndex === 6 && [0, 2, 4].includes(dayIndex);
+                                        const cellBgColor = is7thPeriodEmptySlot ? 'bg-gray-100' : 'bg-white';
+                                        const isSelectable = cell && !isCreativeActivity;
+                                        return (
+                                            <td key={`${periodIndex}-${dayIndex}`} className={`p-1 border-r border-gray-200 ${cellBgColor} overflow-hidden text-ellipsis transition-all duration-200 ease-in-out ${isSelectable ? 'hover:shadow-lg hover:bg-yellow-50 hover:scale-105 transform cursor-pointer' : ''}`} style={{boxShadow: 'inset 2px 2px 5px rgba(0,0,0,0.05)'}} onClick={() => isSelectable && onCellClick(cell)}>
+                                                {cell ? (isCreativeActivity ? (
+                                                    <div className="flex flex-col justify-center items-center h-full"><span className="font-bold text-black dynamic-text-large">{cell.topText}</span></div>
+                                                ) : (
+                                                    <div className="flex flex-col justify-center items-center h-full"><span className="font-bold text-black dynamic-text-large">{cell.topText}</span><span className="text-blue-600 mt-1 dynamic-text-small">{cell.bottomText}</span></div>
+                                                )) : (<span></span>)}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+        
+        const TimetableScreen = ({ schoolInfo, parsedData, onReset, onCellClick, onPrint }) => {
+            const DAYS_OF_WEEK = ['월', '화', '수', '목', '금'];
             const [viewMode, setViewMode] = useState('teacher');
             const [selectedTeacher, setSelectedTeacher] = useState('');
             const [selectedClass, setSelectedClass] = useState('');
-
+            const isGrade3 = schoolInfo.semester === '고3';
+        
             useEffect(() => {
-                const realTeachers = parsedData.teachers.filter(t => !t.startsWith('가상')); if (realTeachers.length > 0) setSelectedTeacher(realTeachers[0]);
+                const realTeachers = parsedData.teachers.filter(t => !t.includes('가상'));
+                if (realTeachers.length > 0) setSelectedTeacher(realTeachers[0]);
+                else if (parsedData.teachers.length > 0) setSelectedTeacher(parsedData.teachers[0]);
+
                 if (parsedData.classes.length > 0) setSelectedClass(parsedData.classes[0]);
             }, [parsedData]);
-
+        
             const gridData = useMemo(() => {
                 const grid = Array(7).fill(null).map(() => Array(5).fill(null));
                 const records = parsedData.records;
+        
                 if (viewMode === 'teacher' && selectedTeacher) {
                     records.filter(r => r.teacher === selectedTeacher).forEach(item => {
-                        const di = DAYS.indexOf(item.day);
-                        const pi = item.period - 1;
-                        if (di !== -1 && pi >= 0 && pi < 7)
-                            grid[pi][di] = { topText: item.classId, bottomText: item.subject };
+                        const dayIndex = DAYS_OF_WEEK.indexOf(item.day);
+                        const periodIndex = item.period - 1;
+                        if (dayIndex !== -1 && periodIndex >= 0 && periodIndex < 7) {
+                            grid[periodIndex][dayIndex] = {
+                                topText: item.classId,
+                                bottomText: isGrade3 ? '' : item.subject
+                            };
+                        }
                     });
                 } else if (viewMode === 'class' && selectedClass) {
                     for (let p = 0; p < 7; p++) {
                         for (let d = 0; d < 5; d++) {
-                            const matched = records.filter(r => r.classId === selectedClass && r.day === DAYS[d] && r.period === p + 1);
-                            if (matched.length > 0)
+                            const matchingRecords = records.filter(r => r.classId === selectedClass && r.day === DAYS_OF_WEEK[d] && r.period === p + 1);
+                            if (matchingRecords.length > 0) {
                                 grid[p][d] = {
-                                    topText: matched[0].subject,
-                                    bottomText: matched.map(r => r.teacher).join(', ')
+                                    topText: isGrade3 ? matchingRecords.map(r => r.teacher).join(', ') : matchingRecords[0].subject,
+                                    bottomText: isGrade3 ? '' : matchingRecords.map(r => r.teacher).join(', ')
                                 };
+                            }
                         }
+                    }
+                    if (!isGrade3 && records.some(r => r.day === '수' && r.period >= 5 && r.subject.includes('창체'))) {
+                         grid[4][2] = { topText: '창체', bottomText: '창체' };
+                         grid[5][2] = { topText: '창체', bottomText: '창체' };
                     }
                 }
                 return grid;
-            }, [viewMode, selectedTeacher, selectedClass, parsedData.records]);
+            }, [viewMode, selectedTeacher, selectedClass, parsedData.records, isGrade3]);
+        
+            const teacherTotalHours = useMemo(() => (viewMode === 'teacher' && selectedTeacher && parsedData.teacherHours) ? parsedData.teacherHours[selectedTeacher] ?? 0 : 0, [viewMode, selectedTeacher, parsedData.teacherHours]);
+        
+            const handleCellClick = useCallback((cell) => {
+                if (!cell) return;
+                const classId = viewMode === 'teacher' ? cell.topText : selectedClass;
+                let subject, teacher;
 
-            const teacherHours = useMemo(() =>
-                (viewMode === 'teacher' && selectedTeacher && parsedData.teacherHours)
-                    ? parsedData.teacherHours[selectedTeacher] ?? 0 : 0,
-                [viewMode, selectedTeacher, parsedData.teacherHours]);
-
+                if (isGrade3) {
+                    if (viewMode === 'teacher') {
+                        subject = '';
+                        teacher = selectedTeacher;
+                    } else { // class view
+                        subject = cell.topText; // This is actually the teacher's name
+                        teacher = cell.topText;
+                    }
+                } else {
+                     subject = viewMode === 'teacher' ? cell.bottomText : cell.topText;
+                     teacher = viewMode === 'teacher' ? selectedTeacher : cell.bottomText;
+                }
+                onCellClick(subject, classId, teacher);
+            }, [viewMode, selectedClass, selectedTeacher, onCellClick, isGrade3]);
+        
             return (
-                <div id="printable-area" className="printable bg-white p-4 md:p-8 rounded-2xl shadow-2xl w-full flex flex-col gap-6">
+                <div id="printable-area" className="printable bg-white p-4 md:p-8 rounded-lg shadow-2xl w-full space-y-6">
                     <header className="space-y-4">
                         <div className="relative text-center pb-4 border-b-2 border-gray-200">
                             <div className="absolute left-0 top-1/2 transform -translate-y-1/2">
-                                <button onClick={onReset} className="px-4 py-2 bg-[#cc4125] hover:bg-[#b33a22] text-white font-bold rounded-lg shadow-md text-base flex items-center gap-2 no-print">
-                                    ◀ 뒤로
+                                <button onClick={onReset} className="px-4 py-2 bg-[#cc4125] hover:bg-[#b33a22] text-white font-bold rounded-lg shadow-md transition-colors text-base flex items-center gap-2 no-print">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>뒤로
                                 </button>
                             </div>
-                            <h1 className="text-2xl md:text-4xl font-bold text-black">
-                                2026학년도 {semester}학기 시간표
+                            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-black">
+                                2026학년도 {isGrade3 ? '고3' : `${schoolInfo.semester}학기`} 시간표
                             </h1>
                         </div>
                         <div className="flex flex-wrap justify-between items-center gap-4">
-                            <div className="flex gap-2 no-print">
-                                <button onClick={() => setViewMode('teacher')}
-                                    className={`px-4 py-2 text-lg font-bold rounded-md transition-all shadow-md ${viewMode === 'teacher' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}>교사별</button>
-                                <button onClick={() => setViewMode('class')}
-                                    className={`px-4 py-2 text-lg font-bold rounded-md transition-all shadow-md ${viewMode === 'class' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-800'}`}>학급별</button>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                <button onClick={() => setViewMode('teacher')} className={`no-print px-4 py-2 text-lg md:px-6 md:py-3 md:text-xl font-bold rounded-md transition-all duration-300 shadow-md ${viewMode === 'teacher' ? 'bg-gradient-to-b from-green-500 to-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}>교사별</button>
+                                <button onClick={() => setViewMode('class')} className={`no-print px-4 py-2 text-lg md:px-6 md:py-3 md:text-xl font-bold rounded-md transition-all duration-300 shadow-md ${viewMode === 'class' ? 'bg-gradient-to-b from-green-500 to-green-600 text-white' : 'bg-gray-200 text-gray-800'}`}>학급별</button>
                             </div>
-                            <div className="flex-grow flex justify-center">
-                                <div className="flex items-center bg-white shadow-md rounded-lg p-2 w-full max-w-xs">
-                                    <span className="text-gray-400 mr-2">🔍</span>
+                            <div className="flex-grow flex justify-center w-full md:w-auto">
+                                <div className="flex items-center bg-white shadow-md rounded-lg p-2 w-full max-w-[20rem]">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                     {viewMode === 'teacher' ? (
                                         <div className="flex items-center w-full justify-between overflow-hidden">
-                                            <select value={selectedTeacher} onChange={e => setSelectedTeacher(e.target.value)}
-                                                className="bg-transparent text-gray-900 font-bold focus:outline-none w-full text-center text-xl md:text-2xl">
-                                                {parsedData.teachers.filter(t => !t.startsWith('가상')).map(t => <option key={t} value={t}>{t}</option>)}
+                                            <select value={selectedTeacher} onChange={(e) => setSelectedTeacher(e.target.value)} className="bg-transparent text-gray-900 font-bold focus:outline-none block w-full appearance-none text-center text-xl md:text-2xl truncate">
+                                                {parsedData.teachers.filter(t => !t.includes('가상')).map(t => <option key={t} value={t}>{t}</option>)}
                                             </select>
-                                            {teacherHours > 0 && (
-                                                <div className="bg-yellow-400 text-gray-800 font-bold px-3 py-1 rounded-md text-base whitespace-nowrap ml-2">{teacherHours}시간</div>
-                                            )}
+                                            {!isGrade3 && teacherTotalHours > 0 && <div className="bg-yellow-400 text-gray-800 font-bold px-3 py-1 rounded-md text-base whitespace-nowrap ml-2">{teacherTotalHours}시간</div>}
                                         </div>
                                     ) : (
-                                        <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)}
-                                            className="bg-transparent text-gray-900 font-bold focus:outline-none w-full text-center text-xl md:text-2xl">
+                                        <select value={selectedClass} onChange={(e) => setSelectedClass(e.target.value)} className="bg-transparent text-gray-900 font-bold focus:outline-none block w-full appearance-none text-center text-xl md:text-2xl">
                                             {parsedData.classes.map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
                                     )}
                                 </div>
                             </div>
-                            <div className="no-print">
-                                <button onClick={onPrint} className="px-5 py-2 bg-[#a64d79] hover:bg-[#8e4168] text-white font-bold rounded-lg shadow-md text-lg">인쇄하기</button>
+                            <div className="flex justify-end flex-shrink-0">
+                                 <button onClick={onPrint} className="px-5 py-2 bg-[#a64d79] hover:bg-[#8e4168] text-white font-bold rounded-lg shadow-md transition-colors text-lg no-print">인쇄하기</button>
                             </div>
                         </div>
                     </header>
-                    <TimetableView gridData={gridData} days={DAYS} onCellClick={() => {}} />
+                    <div><TimetableView gridData={gridData} days={DAYS_OF_WEEK} onCellClick={handleCellClick} /></div>
                 </div>
             );
         };
+        
+        const StudentSearchView = ({ studentData2, studentData3, onReset, onPrint }) => {
+            const GRADE_2_CODES = ['A', 'B', 'C', 'Ca', 'Cb', 'D', 'E'];
+            const GRADE_3_CODES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+            const [searchQuery, setSearchQuery] = useState('');
+            const [selectedGrade, setSelectedGrade] = useState('all');
+            const [selectedClass, setSelectedClass] = useState('all');
+            const { allStudents, allCodes, allClassNames } = useMemo(() => {
+                if (!studentData2 || !studentData3) return { allStudents: [], allCodes: [], allClassNames: [] };
+                const combinedData = [...studentData2.data, ...studentData3.data];
+                const allHeaders = [...new Set([...studentData2.headers, ...studentData3.headers])];
+                const transformed = combinedData.map(s => {
+                    const choices = {};
+                    allHeaders.forEach(h => { 
+                        const c = s[h]; 
+                        if(c) {
+                            const shortName = Object.keys(SUBJECT_CODE_MAP).find(key => SUBJECT_CODE_MAP[key] === h) || h;
+                            choices[c] = shortName;
+                        }
+                    });
 
-        // ─── 홈 화면 ─────────────────────────────────────────────────────
-        const HomeScreen = ({ onSelect }) => (
-            <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-2xl mx-auto text-center">
-                <header className="mb-8">
-                    <div className="text-6xl mb-4">📅</div>
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-800">원묵고등학교 시간표</h1>
-                    <p className="text-xl text-gray-600 mt-2">2026학년도</p>
-                </header>
-                <main className="space-y-4">
-                    <button onClick={() => onSelect('1')}
-                        className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">
-                        1학기 시간표
-                    </button>
-                    <button
-                        disabled
-                        className="w-full px-8 py-4 text-xl font-bold text-white bg-gradient-to-r from-green-400 to-green-500 rounded-xl shadow-lg opacity-50 cursor-not-allowed">
-                        2학기 시간표
-                        <span className="block text-sm font-normal mt-1">준비 중</span>
-                    </button>
-                </main>
-            </div>
-        );
+                    if (s['학번'].startsWith('3')) {
+                        const ungounCode = s['운동과 건강'];
+                        const changdokCode = s['창독'];
+                        
+                        if (ungounCode && ungounCode === changdokCode) {
+                            const ungounShort = Object.keys(SUBJECT_CODE_MAP).find(key => SUBJECT_CODE_MAP[key] === '운동과 건강') || '운건';
+                            const changdokShort = Object.keys(SUBJECT_CODE_MAP).find(key => SUBJECT_CODE_MAP[key] === '창독') || '창독';
+                            choices[ungounCode] = `${ungounShort}/${changdokShort}`;
+                        }
+                    }
+                    return { ...s, choices };
+                });
+                return { 
+                    allStudents: transformed, 
+                    allCodes: [...new Set(transformed.flatMap(s => Object.keys(s.choices)))].sort((a,b) => a.localeCompare(b, undefined, {numeric: true})), 
+                    allClassNames: [...new Set(transformed.map(s => s['학번'].substring(0, 3)))].sort() 
+                };
+            }, [studentData2, studentData3]);
+            const availableClasses = useMemo(() => selectedGrade === 'all' ? allClassNames : allClassNames.filter(c => c.startsWith(selectedGrade)), [allClassNames, selectedGrade]);
+            useEffect(() => { setSelectedClass('all'); }, [selectedGrade]);
+            const { filteredStudents, displayCodes } = useMemo(() => {
+                let students = allStudents;
+                if (selectedGrade !== 'all') { students = students.filter(s => s['학번'].startsWith(selectedGrade)); }
+                if (selectedClass !== 'all') { students = students.filter(s => s['학번'].substring(0, 3) === selectedClass); }
+                const query = searchQuery.trim().toLowerCase();
+                if (query) { students = students.filter(s => s['이름'].toLowerCase().includes(query) || s['학번'].includes(query)); }
+                
+                let codes;
+                if(selectedGrade === '2') codes = GRADE_2_CODES;
+                else if (selectedGrade === '3') codes = GRADE_3_CODES;
+                else codes = allCodes;
 
-        // ─── 메인 앱 ─────────────────────────────────────────────────────
+                return { filteredStudents: students, displayCodes: codes };
+            }, [allStudents, searchQuery, selectedGrade, selectedClass, allCodes]);
+            
+            const filterDescription = useMemo(() => {
+                if (selectedClass !== 'all') { return `${selectedClass.charAt(0)}학년 ${parseInt(selectedClass.substring(1), 10)}반`; }
+                if (selectedGrade !== 'all') { return `${selectedGrade}학년 전체`; }
+                return '전체 학년 / 전체 반';
+            }, [selectedGrade, selectedClass]);
+
+            return (
+                <div id="student-printable-area" className="printable bg-white p-6 md:p-8 rounded-lg shadow-2xl w-full max-w-full space-y-4">
+                    <header className="space-y-4">
+                        <div className="relative text-center pb-4 border-b-2 border-gray-200">
+                             <div className="absolute left-0 top-1/2 transform -translate-y-1/2"><button onClick={onReset} className="px-4 py-2 bg-[#cc4125] hover:bg-[#b33a22] text-white font-bold rounded-lg shadow-md transition-colors text-base flex items-center gap-2 no-print"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>뒤로</button></div>
+                            <h1 className="text-2xl md:text-4xl font-bold tracking-tight text-black">학생별 선택과목 조회</h1>
+                             <div className="absolute right-0 top-1/2 transform -translate-y-1/2"><button onClick={onPrint} className="px-5 py-2 bg-[#a64d79] hover:bg-[#8e4168] text-white font-bold rounded-lg shadow-md transition-colors text-lg no-print">인쇄하기</button></div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 p-4 bg-gray-50 rounded-lg no-print">
+                            <div className="flex items-center gap-2">
+                                <label className="font-bold text-lg">학년:</label><select value={selectedGrade} onChange={e => setSelectedGrade(e.target.value)} className="p-2 border rounded-md"><option value="all">전체</option><option value="2">2학년</option><option value="3">3학년</option></select>
+                                <label className="font-bold text-lg ml-4">반:</label><select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="p-2 border rounded-md"><option value="all">전체</option>{availableClasses.map(c => <option key={c} value={c}>{`${c.charAt(0)}학년 ${parseInt(c.substring(1), 10)}반`}</option>)}</select>
+                            </div>
+                            <div className="relative">
+                                <input type="text" placeholder="학생 이름 또는 학번으로 검색..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full p-3 pl-10 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition" />
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg></div>
+                            </div>
+                            <div className="text-right font-bold text-lg text-gray-700">검색 결과: {filteredStudents.length}명</div>
+                        </div>
+                    </header>
+                    <div className="hidden print:flex justify-between items-center mb-2 px-1">
+                        <span className="text-base font-bold">{filterDescription}</span>
+                        <span className="text-base font-bold">인원: {filteredStudents.length}명</span>
+                    </div>
+                     <div className="overflow-x-auto shadow-md rounded-lg">
+                        <table className="w-full text-sm text-left text-gray-700">
+                            <thead className="text-xs text-gray-900 uppercase bg-blue-100 sticky top-0 border-b border-blue-200">
+                                <tr>
+                                    <th scope="col" className="px-2 py-2 whitespace-nowrap">순</th>
+                                    <th scope="col" className="px-2 py-2 whitespace-nowrap">학번</th>
+                                    <th scope="col" className="px-2 py-2 whitespace-nowrap">이름</th>
+                                    {displayCodes.map(code => <th key={code} scope="col" className="px-2 py-2 text-center whitespace-nowrap">{code}</th>)}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredStudents.map((student, index) => (
+                                    <tr key={student['학번']} className="bg-white border-b hover:bg-gray-50">
+                                        <td className="px-2 py-1 text-center whitespace-nowrap">{index + 1}</td>
+                                        <th scope="row" className="px-2 py-1 font-medium text-gray-900 whitespace-nowrap">{student['학번']}</th>
+                                        <td className="px-2 py-1 whitespace-nowrap">{student['이름']}</td>
+                                        {displayCodes.map(code => <td key={code} className="px-2 py-1 text-center whitespace-nowrap">{student.choices[code] || ''}</td>)}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                         {filteredStudents.length === 0 && <p className="text-center text-gray-500 py-10 no-print">검색 결과가 없습니다.</p>}
+                    </div>
+                </div>
+            )
+        };
+
         const App = () => {
-            const [view, setView] = useState('home');
-            const [semester, setSemester] = useState(null);
+            const [isAuthenticated, setIsAuthenticated] = useState(true);
+            const [currentView, setCurrentView] = useState('home');
+            const [schoolInfo, setSchoolInfo] = useState(null);
             const [parsedData, setParsedData] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [studentData1, setStudentData1] = useState(null);
+            const [studentData2, setStudentData2] = useState(null);
+            const [studentData3, setStudentData3] = useState(null);
+            const [studentData3Names, setStudentData3Names] = useState(null);
+            const [studentAllData2, setStudentAllData2] = useState(null);
+            const [modalData, setModalData] = useState(null);
+            const [studentDetailModalData, setStudentDetailModalData] = useState(null);
+            const [grade2Subjects, setGrade2Subjects] = useState([]);
+            const [grade3Subjects, setGrade3Subjects] = useState([]);
 
-            const handleSelect = useCallback((sem) => {
-                const csv = sem === '1' ? SEMESTER1_CSV : SEMESTER2_CSV;
-                if (!csv) return;
-                setParsedData(parseTimetableCSV(csv));
-                setSemester(sem);
-                setView('timetable');
+            useEffect(() => {
+                if (isAuthenticated && !studentData1) {
+                    try {
+                        setStudentData1(parseStudentCSV(studentCsvGrade1));
+                        const sData2 = parseStudentCSV(studentCsvGrade2);
+                        const sData3 = parseStudentCSV(studentCsvGrade3);
+                        const sAllData2 = parseStudentCSV(studentCsvAllGrade2);
+                        const sData3Names = parseStudentCSV(studentCsvGrade3Names);
+                        setStudentData2(sData2);
+                        setStudentData3(sData3);
+                        setStudentAllData2(sAllData2);
+                        setStudentData3Names(sData3Names);
+                        setGrade2Subjects(sData2.headers);
+                        setGrade3Subjects(sData3.headers);
+                    } catch (e) {
+                        setError("학생 데이터를 불러오는 중 오류가 발생했습니다: " + e.message);
+                        console.error(e);
+                    }
+                }
+            }, [isAuthenticated]);
+            
+            const handleSemesterSelect = useCallback(async (semester) => {
+                setIsLoading(true); setError(null);
+                try {
+                    const isGrade3 = semester === '3';
+                    const csvData = semester === '1' ? semester1Csv : semester === '2' ? semester2Csv : semester3Csv;
+                    const data = await parseTimetableCSV(csvData, isGrade3);
+                    setParsedData(data);
+                    const semesterText = isGrade3 ? '고3' : semester;
+                    setSchoolInfo({ year: '2026', semester: semesterText });
+                    setCurrentView('timetable');
+                } catch (err) { setError(`데이터 로딩 실패: ${err.message}`); console.error(err); } 
+                finally { setIsLoading(false); }
             }, []);
+            const handleStudentSearchSelect = useCallback(() => setCurrentView('student_search'), []);
+            const handleReset = useCallback(() => { setCurrentView('home'); setSchoolInfo(null); setParsedData(null); setError(null); }, []);
 
-            const handleReset = useCallback(() => {
-                setView('home'); setParsedData(null); setSemester(null);
-            }, []);
+            const handleCellClick = useCallback((subjectString, classId, teacher) => {
+                const isGrade3Click = schoolInfo?.semester === '고3';
 
-            const handlePrint = () => {
-                const el = document.getElementById('printable-area');
-                if (el) {
-                    document.body.classList.add('printing-portrait');
-                    el.classList.add('printing');
+                if (isGrade3Click) {
+                    const studentList = studentData3Names?.data;
+                    if (!studentList) return;
+                    const classStudents = studentList.filter(s => s['학번'].startsWith(classId)).map(s => ({ id: s['학번'], name: s['이름'], grade: '3' }));
+                    if (classStudents.length > 0) {
+                        setModalData({ subject: `${classId}반 명단`, students: classStudents, isElective: false, teacher: teacher });
+                    }
+                    return;
+                }
+                
+                if (!subjectString || !classId) return;
+                let subjectKey = null, code = null;
+                const sortedKeys = Object.keys(SUBJECT_CODE_MAP).sort((a, b) => b.length - a.length);
+                for (const key of sortedKeys) {
+                    if (subjectString.endsWith(key)) {
+                        subjectKey = key;
+                        code = subjectString.substring(0, subjectString.length - key.length);
+                        break;
+                    }
+                }
+
+                if (subjectKey && code) {
+                    const fullSubjectName = SUBJECT_CODE_MAP[subjectKey];
+                    const grade = grade2Subjects.includes(fullSubjectName) ? '2' : '3';
+                    const studentChoiceData = grade === '2' ? studentData2?.data : studentData3?.data;
+                    if (!studentChoiceData) return;
+                    const enrolledStudents = studentChoiceData.filter(s => s[fullSubjectName] === code).map(s => ({ id: s['학번'], name: s['이름'], grade }));
+                    if (enrolledStudents.length > 0) setModalData({ subject: `${subjectString} (${fullSubjectName})`, students: enrolledStudents, isElective: true, teacher: teacher });
+                } else {
+                    const grade = classId.toString().charAt(0);
+                    if (!['1', '2'].includes(grade)) return;
+                    const studentList = grade === '1' ? studentData1?.data : studentAllData2?.data;
+                    if (!studentList) return;
+                    const classStudents = studentList.filter(s => s['학번'].startsWith(classId)).map(s => ({ id: s['학번'], name: s['이름'], grade }));
+                    if (classStudents.length > 0) setModalData({ subject: `${classId}반 (${subjectString})`, students: classStudents, isElective: false, teacher: teacher });
+                }
+            }, [schoolInfo, studentData1, studentAllData2, studentData2, studentData3, studentData3Names, grade2Subjects, grade3Subjects]);
+
+
+            const handleStudentNameClick = useCallback((student) => {
+                const studentDataSource = student.grade === '2' ? studentData2?.data : studentData3?.data;
+                if (!studentDataSource) return;
+                const studentInfo = studentDataSource.find(s => s['학번'] === student.id);
+                if (studentInfo) {
+                    const selectedSubjects = Object.entries(studentInfo)
+                        .filter(([key, value]) => value && key !== '학번' && key !== '이름')
+                        .map(([subject, code]) => {
+                            const shortName = Object.keys(SUBJECT_CODE_MAP).find(key => SUBJECT_CODE_MAP[key] === subject) || '';
+                            return `${code}${shortName} (${subject})`;
+                        });
+                    setStudentDetailModalData({ name: `${student.id} ${student.name}`, subjects: selectedSubjects });
+                }
+            }, [studentData2, studentData3]);
+
+            const handlePrint = (viewType) => {
+                const elementId = viewType === 'student_search' ? 'student-printable-area' : 'printable-area';
+                const printElement = document.getElementById(elementId);
+                const body = document.body;
+
+                if (printElement) {
+                    if (viewType === 'student_search') body.classList.add('printing-landscape');
+                    else body.classList.add('printing-portrait');
+
+                    printElement.classList.add('printing');
+
                     setTimeout(() => {
                         window.print();
-                        document.body.classList.remove('printing-portrait');
-                        el.classList.remove('printing');
+                        body.classList.remove('printing-landscape', 'printing-portrait');
+                        printElement.classList.remove('printing');
                     }, 150);
                 }
             };
-
+            
+            const renderView = () => {
+                if (!isAuthenticated) return null; // 로그인 화면을 그냥 렌더링하지 않음
+                switch (currentView) {
+                    case 'timetable': return <TimetableScreen schoolInfo={schoolInfo} parsedData={parsedData} onReset={handleReset} onCellClick={handleCellClick} onPrint={() => handlePrint('timetable')} />;
+                    case 'student_search': return <StudentSearchView studentData2={studentData2} studentData3={studentData3} onReset={handleReset} onPrint={() => handlePrint('student_search')} />;
+                    default: return <HomeScreen onSemesterSelect={handleSemesterSelect} onStudentSearchSelect={handleStudentSearchSelect} isLoading={isLoading} error={error} />;
+                }
+            };
+            
             return (
                 <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
                     <main className="w-full max-w-7xl mx-auto">
-                        {view === 'home' ? (
-                            <HomeScreen onSelect={handleSelect} />
-                        ) : (
-                            <TimetableScreen semester={semester} parsedData={parsedData} onReset={handleReset} onPrint={handlePrint} />
-                        )}
+                        <StudentListModal modalData={modalData} onClose={() => setModalData(null)} onStudentClick={handleStudentNameClick} />
+                        <StudentDetailModal modalData={studentDetailModalData} onClose={() => setStudentDetailModalData(null)} />
+                        {renderView()}
                     </main>
-                    <footer className="w-full text-center text-gray-400 text-sm mt-8 no-print">
-                        © 2026 원묵고등학교 시간표 시스템
-                    </footer>
+                    {isAuthenticated && (
+                         <footer className="w-full text-center text-gray-500 text-sm mt-8 no-print">
+                            © 2026 KH KIM. All Rights Reserved.
+                        </footer>
+                    )}
                 </div>
             );
         };
-
-        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+        
+        const rootElement = document.getElementById('root');
+        ReactDOM.createRoot(rootElement).render(<App />);
     </script>
 </body>
 </html>
